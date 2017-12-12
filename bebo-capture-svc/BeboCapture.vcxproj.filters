@@ -30,9 +30,13 @@
     <ClCompile Include="..\third_party\g2log\crashhandler_win.cpp">
       <Filter>logger</Filter>
     </ClCompile>
+    <ClCompile Include="DShowCapture.cpp" />
+    <ClCompile Include="sink_filter_win.cc" />
+    <ClCompile Include="sink_input_pin_win.cc" />
+    <ClCompile Include="filter_base_win.cc" />
+    <ClCompile Include="pin_base_win.cc" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\third_party\g2log\shared_queue.h" />
     <ClInclude Include="BeboCapture.h" />
     <ClInclude Include="BeboCaptureGuids.h" />
     <ClInclude Include="CommonTypes.h" />
@@ -62,6 +66,22 @@
     <ClInclude Include="..\third_party\g2log\crashhandler.h">
       <Filter>logger</Filter>
     </ClInclude>
+    <ClInclude Include="IVideoCaptureFilter.h">
+      <Filter>capture-devices</Filter>
+    </ClInclude>
+    <ClInclude Include="IVideoCaptureFilterTypes.h">
+      <Filter>capture-devices</Filter>
+    </ClInclude>
+    <ClInclude Include="DShowCapture.h" />
+    <ClInclude Include="sink_filter_observer_win.h" />
+    <ClInclude Include="sink_filter_win.h" />
+    <ClInclude Include="sink_input_pin_win.h" />
+    <ClInclude Include="filter_base_win.h" />
+    <ClInclude Include="pin_base_win.h" />
+    <ClInclude Include="shared_queue.h" />
+    <ClInclude Include="..\third_party\g2log\shared_queue.h">
+      <Filter>logger</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Capture.rc" />
@@ -75,6 +95,9 @@
   <ItemGroup>
     <Filter Include="logger">
       <UniqueIdentifier>{8d90ee7e-1186-4950-a73a-622fdfa1e49d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="capture-devices">
+      <UniqueIdentifier>{72280329-1086-4366-a0fa-13701aa301e8}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

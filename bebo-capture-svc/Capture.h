@@ -12,6 +12,7 @@
 #include "DesktopCapture.h"
 #include "GameCapture.h"
 #include "GDICapture.h"
+#include "DShowCapture.h"
 #include "CommonTypes.h"
 #include "registry.h"
 
@@ -114,6 +115,7 @@ protected:
 
 	DesktopCapture* m_pDesktopCapture;
 	GDICapture* m_pGDICapture;
+	DShowCapture* dshowCapture;
 
 	bool m_bFormatAlreadySet;
 	bool m_bCaptureOnce;
@@ -173,6 +175,7 @@ public:
     HRESULT FillBuffer_Inject(IMediaSample *pSample);
     HRESULT FillBuffer_Desktop(IMediaSample *pSample);
     HRESULT FillBuffer_GDI(IMediaSample *pSample);
+    HRESULT FillBuffer_DShow(IMediaSample *pSample);
 
     // Set the agreed media type and set up the necessary parameters
     HRESULT SetMediaType(const CMediaType *pMediaType);

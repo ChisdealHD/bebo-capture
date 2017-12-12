@@ -65,6 +65,7 @@ CPushPinDesktop::CPushPinDesktop(HRESULT *phr, CGameCapture *pFilter)
 	game_context(NULL),
 	m_pDesktopCapture(new DesktopCapture),
 	m_pGDICapture(new GDICapture),
+	dshowCapture(new DShowCapture),
 	m_iDesktopNumber(-1),
 	m_iDesktopAdapterNumber(-1),
 	m_iCaptureHandle(-1),
@@ -217,7 +218,9 @@ int CPushPinDesktop::GetGameFromRegistry(void) {
 			newCaptureType = CAPTURE_INJECT;
 		}
 		else if (wcscmp(type, L"gdi") == 0) {
-			newCaptureType = CAPTURE_GDI;
+			//newCaptureType = CAPTURE_GDI;
+			// FIXME HACKS
+			newCaptureType = CAPTURE_DSHOW;
 		}
 		else if (wcscmp(type, L"dshow") == 0) {
 			newCaptureType = CAPTURE_DSHOW;
@@ -445,7 +448,7 @@ HRESULT CPushPinDesktop::FillBuffer(IMediaSample *pSample)
 			code = FillBuffer_GDI(pSample);
 			break;
 		case CAPTURE_DSHOW:
-			error("LIBDSHOW CAPTURE IS NOT SUPPRTED YET");
+			code = FillBuffer_DShow(pSample);
 			break;
 		default:
 			error("UNKNOWN CAPTURE TYPE: %d", m_iCaptureType);
@@ -491,11 +494,13 @@ HRESULT CPushPinDesktop::FillBuffer(IMediaSample *pSample)
 	// auto-correct drift
 	previousFrame = previousFrame + m_rtFrameLength;
 
-	REFERENCE_TIME startFrame = m_iFrameNumber * m_rtFrameLength;
-	REFERENCE_TIME endFrame = startFrame + m_rtFrameLength;
-	pSample->SetTime((REFERENCE_TIME *)&startFrame, (REFERENCE_TIME *)&endFrame);
-	CSourceStream::m_pFilter->StreamTime(now);
-	debug("timestamping (%11f) video packet %llf -> %llf length:(%11f) drift:(%llf)", 0.0001 * now, 0.0001 * startFrame, 0.0001 * endFrame, 0.0001 * (endFrame - startFrame), 0.0001 * (now - previousFrame));
+	if (m_iCaptureType != CAPTURE_DSHOW) {
+		REFERENCE_TIME startFrame = m_iFrameNumber * m_rtFrameLength;
+		REFERENCE_TIME endFrame = startFrame + m_rtFrameLength;
+		pSample->SetTime((REFERENCE_TIME *)&startFrame, (REFERENCE_TIME *)&endFrame);
+		CSourceStream::m_pFilter->StreamTime(now);
+		debug("timestamping (%11f) video packet %llf -> %llf length:(%11f) drift:(%llf)", 0.0001 * now, 0.0001 * startFrame, 0.0001 * endFrame, 0.0001 * (endFrame - startFrame), 0.0001 * (now - previousFrame));
+	}
 
 	m_iFrameNumber++;
 
@@ -506,14 +511,16 @@ HRESULT CPushPinDesktop::FillBuffer(IMediaSample *pSample)
 	// Set TRUE on every sample for uncompressed frames http://msdn.microsoft.com/en-us/library/windows/desktop/dd407021%28v=vs.85%29.aspx
 	pSample->SetSyncPoint(TRUE);
 
-	// only set discontinuous for the first...I think...
-	pSample->SetDiscontinuity(m_iFrameNumber <= 1);
+	if (m_iCaptureType != CAPTURE_DSHOW || m_iFrameNumber <= 1) {
+		// only set discontinuous for the first...I think...
+		pSample->SetDiscontinuity(m_iFrameNumber <= 1);
+	}
 
 	double m_fFpsSinceBeginningOfTime = ((double)m_iFrameNumber) / (GetTickCount() - globalStart) * 1000;
 	_swprintf(out, L"done video frame! total frames: %d this one %dx%d -> (%dx%d) took: %.02Lfms, %.02f ave fps (%.02f is the theoretical max fps based on this round, ave. possible fps %.02f, fastest round fps %.02f, negotiated fps %.06f), frame missed: %d, type: %ls, name: %ls, black frame: %d, black frame count: %llu",
 		m_iFrameNumber, m_iCaptureConfigWidth, m_iCaptureConfigHeight, getNegotiatedFinalWidth(), getNegotiatedFinalHeight(), millisThisRoundTook, m_fFpsSinceBeginningOfTime, 1.0 * 1000 / millisThisRoundTook,
 		/* average */ 1.0 * 1000 * m_iFrameNumber / sumMillisTook, 1.0 * 1000 / fastestRoundMillis, GetFps(), countMissed, m_pCaptureTypeName.c_str(), m_pCaptureLabel.c_str(), isBlackFrame, blackFrameCount);
-	debug(out);
+	// debug(out);
 	return S_OK;
 }
 
@@ -717,7 +724,23 @@ HRESULT CPushPinDesktop::FillBuffer_Desktop(IMediaSample *pSample) {
 	return S_OK;
 }
 
+HRESULT CPushPinDesktop::FillBuffer_DShow(IMediaSample *pSample)
+{
+	CheckPointer(pSample, E_POINTER);
 
+	dshowCapture->Initialize();
+
+	CRefTime now;
+	now = 0;
+
+	CSourceStream::m_pFilter->StreamTime(now);
+	bool frame = dshowCapture->GetFrame(pSample);
+	if (!frame) { // not initialized yet
+		return 2;
+	}
+
+	return S_OK;
+}
 
 HRESULT CPushPinDesktop::FillBuffer_GDI(IMediaSample *pSample)
 {
