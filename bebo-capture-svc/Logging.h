@@ -20,7 +20,7 @@ extern "C" {
 #undef info
 #undef debug
 
-#ifdef NDEBUG
+#ifdef __NDEBUG
 #define debug(format, ...)
 #define debug_(format, ...)
 #else

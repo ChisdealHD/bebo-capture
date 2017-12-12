@@ -12,6 +12,7 @@
 #include "d3d11.h"
 #include <dxgi.h>
 #include <Psapi.h>
+#include <libyuv/convert.h>
 
 #define MIN(a,b)  ((a) < (b) ? (a) : (b))  // danger! can evaluate "a" twice.
 #define EVENT_READ_REGISTRY "Global\\BEBO_CAPTURE_READ_REGISTRY"
@@ -418,6 +419,7 @@ void CPushPinDesktop::ProcessRegistryReadEvent(long timeout) {
 
 HRESULT CPushPinDesktop::FillBuffer(IMediaSample *pSample)
 {
+    debug("FillBuffer");
 	__int64 startThisRound = StartCounter();
 
 	CheckPointer(pSample, E_POINTER);
@@ -521,7 +523,8 @@ HRESULT CPushPinDesktop::FillBuffer(IMediaSample *pSample)
 	_swprintf(out, L"done video frame! total frames: %d this one %dx%d -> (%dx%d) took: %.02Lfms, %.02f ave fps (%.02f is the theoretical max fps based on this round, ave. possible fps %.02f, fastest round fps %.02f, negotiated fps %.06f), frame missed: %d, type: %ls, name: %ls, black frame: %d, black frame count: %llu",
 		m_iFrameNumber, m_iCaptureConfigWidth, m_iCaptureConfigHeight, getNegotiatedFinalWidth(), getNegotiatedFinalHeight(), millisThisRoundTook, m_fFpsSinceBeginningOfTime, 1.0 * 1000 / millisThisRoundTook,
 		/* average */ 1.0 * 1000 * m_iFrameNumber / sumMillisTook, 1.0 * 1000 / fastestRoundMillis, GetFps(), countMissed, m_pCaptureTypeName.c_str(), m_pCaptureLabel.c_str(), isBlackFrame, blackFrameCount);
-	// debug(out);
+	debug_(out);
+    debug("end FillBuffer");
 	return S_OK;
 }
 
@@ -725,15 +728,85 @@ HRESULT CPushPinDesktop::FillBuffer_Desktop(IMediaSample *pSample) {
 	return S_OK;
 }
 
-HRESULT CPushPinDesktop::FillBuffer_DShow(IMediaSample *pSample)
+HRESULT CPushPinDesktop::FillBuffer_DShow(IMediaSample *sample)
 {
-	CheckPointer(pSample, E_POINTER);
+	CheckPointer(sample, E_POINTER);
 
 	dshowCapture->Initialize();
-	bool frame = dshowCapture->GetFrame(pSample);
+    IMediaSample *left_hand_sample;
+	bool frame = dshowCapture->GetFrame(&left_hand_sample);
 	if (!frame) { // not initialized yet
+        debug("no frame - return 2");
 		return 2;
 	}
+
+	uint8_t* out_buffer;
+	sample->GetPointer(&out_buffer);
+
+	uint8_t* queued_sample_buffer;
+	left_hand_sample->GetPointer(&queued_sample_buffer);
+
+	long queued_sample_size = left_hand_sample->GetActualDataLength();
+	long out_sample_size = sample->GetSize();
+
+	// debug("ActualDataLength: %ld, Size: %ld", queued_sample->GetActualDataLength(), queued_sample->GetSize());
+
+	int negotiated_width = 1280;
+	int negotiated_height = 720;
+
+	int stride_uyvy = 1280 * 2;
+	uint8_t* y = out_buffer;
+	int stride_y = negotiated_width;
+	uint8_t* u = out_buffer + (negotiated_width * negotiated_height);
+	int stride_u = (negotiated_width + 1) / 2;
+	uint8_t* v = u + ((negotiated_width * negotiated_height) >> 2);
+	int stride_v = stride_u;
+
+	libyuv::UYVYToI420(queued_sample_buffer,
+		stride_uyvy,
+		y,
+		stride_y,
+		u,
+		stride_u,
+		v,
+		stride_v,
+		negotiated_width,
+		negotiated_height);
+	
+	/*
+	if (out_sample_size < queued_sample_size) {
+		error("out_sample_size < queued_sample_size. %ld < %ld", out_sample_size, queued_sample_size);
+		return false;
+	}		
+	memcpy(out_buffer, queued_sample_buffer, out_sample_size);
+	*/
+
+	static REFERENCE_TIME last_end_time = 0;
+	REFERENCE_TIME start_frame;
+	REFERENCE_TIME end_frame;
+	left_hand_sample->GetTime(&start_frame, &end_frame);
+
+#if 0
+	if (last_end_time != 0) {
+		REFERENCE_TIME new_start_time = last_end_time + 1;
+		//REFERENCE_TIME new_end_time = new_start_time + (end_frame - start_frame);
+		sample->SetTime((REFERENCE_TIME *)&new_start_time, (REFERENCE_TIME *)&end_frame);
+	    debug("start: %lld, stop: %lld, delta: %lld", new_start_time, end_frame, end_frame - new_start_time);
+        last_end_time = end_frame;
+	} else {
+	    debug("last_end_time: %lld start: %lld, stop: %lld, delta: %lld", last_end_time, start_frame, end_frame, end_frame - start_frame);
+		sample->SetTime((REFERENCE_TIME *)&start_frame, (REFERENCE_TIME *)&end_frame);
+        last_end_time = end_frame;
+	}
+#else
+	sample->SetTime((REFERENCE_TIME *)&start_frame, (REFERENCE_TIME *)&end_frame);
+#endif
+
+	sample->SetSyncPoint(TRUE);
+
+	bool is_discontinuity = (left_hand_sample->IsDiscontinuity() == S_OK);
+	sample->SetDiscontinuity(is_discontinuity);
+	left_hand_sample->Release();
 
 	return S_OK;
 }

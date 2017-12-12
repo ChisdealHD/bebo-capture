@@ -17,7 +17,7 @@ public:
 	void Run();
 
 	bool Initialize();
-	bool GetFrame(IMediaSample *sample);
+	bool GetFrame(IMediaSample **left_hand_sample);
 
 	void FrameReceived(IMediaSample* sample) override;
 

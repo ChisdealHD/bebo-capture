@@ -186,7 +186,7 @@ void DShowCapture::AddDeviceFilter(GUID device_guid) {
     hr = stream_config->GetNumberOfCapabilities(&count, &size);
     RETURN_ON_FAILED(hr, "Failed to get number of capabilities. hr: %d", hr);
 
-    std::unique_ptr<BYTE[]> caps(new BYTE[size]);
+    std::unique_ptr<BYTE[]> caps(new BYTE[size] {0});
 
     int capability_index = 1;
     for (int i = 0; i < count; i++) {
@@ -278,7 +278,7 @@ void DShowCapture::Run() {
 }
 
 // FillBuffer - Blocking
-bool DShowCapture::GetFrame(IMediaSample * sample)
+bool DShowCapture::GetFrame(IMediaSample ** left_hand_sample)
 {
     debug("GetFrame - start - queue size %d", media_sample_queue_.size());
 
@@ -288,79 +288,9 @@ bool DShowCapture::GetFrame(IMediaSample * sample)
         debug("No sample within %d ms", ms);
 		return false;
 	}
-
 	debug("GetFrame - got frame from queue");
-
-	uint8_t* out_buffer;
-	sample->GetPointer(&out_buffer);
-
-	uint8_t* queued_sample_buffer;
-	queued_sample->GetPointer(&queued_sample_buffer);
-
-	long queued_sample_size = queued_sample->GetActualDataLength();
-	long out_sample_size = sample->GetSize();
-
-	// debug("ActualDataLength: %ld, Size: %ld", queued_sample->GetActualDataLength(), queued_sample->GetSize());
-
-	int negotiated_width = 1280;
-	int negotiated_height = 720;
-
-	int stride_uyvy = 1280 * 2;
-	uint8* y = out_buffer;
-	int stride_y = negotiated_width;
-	uint8* u = out_buffer + (negotiated_width * negotiated_height);
-	int stride_u = (negotiated_width + 1) / 2;
-	uint8* v = u + ((negotiated_width * negotiated_height) >> 2);
-	int stride_v = stride_u;
-
-	libyuv::UYVYToI420(queued_sample_buffer,
-		stride_uyvy,
-		y,
-		stride_y,
-		u,
-		stride_u,
-		v,
-		stride_v,
-		negotiated_width,
-		negotiated_height);
-	
-	/*
-	if (out_sample_size < queued_sample_size) {
-		error("out_sample_size < queued_sample_size. %ld < %ld", out_sample_size, queued_sample_size);
-		return false;
-	}		
-	memcpy(out_buffer, queued_sample_buffer, out_sample_size);
-	*/
-
-	static REFERENCE_TIME last_end_time = 0;
-	REFERENCE_TIME start_frame;
-	REFERENCE_TIME end_frame;
-	queued_sample->GetTime(&start_frame, &end_frame);
-
-#if 0
-	if (last_end_time != 0) {
-		REFERENCE_TIME new_start_time = last_end_time + 1;
-		//REFERENCE_TIME new_end_time = new_start_time + (end_frame - start_frame);
-		sample->SetTime((REFERENCE_TIME *)&new_start_time, (REFERENCE_TIME *)&end_frame);
-	    debug("start: %lld, stop: %lld, delta: %lld", new_start_time, end_frame, end_frame - new_start_time);
-        last_end_time = end_frame;
-	} else {
-	    debug("last_end_time: %lld start: %lld, stop: %lld, delta: %lld", last_end_time, start_frame, end_frame, end_frame - start_frame);
-		sample->SetTime((REFERENCE_TIME *)&start_frame, (REFERENCE_TIME *)&end_frame);
-        last_end_time = end_frame;
-	}
-#else
-	sample->SetTime((REFERENCE_TIME *)&start_frame, (REFERENCE_TIME *)&end_frame);
-#endif
-
-	sample->SetSyncPoint(TRUE);
-
-	bool isDiscontinuity = (queued_sample->IsDiscontinuity() == S_OK);
-	sample->SetDiscontinuity(isDiscontinuity);
-
-	queued_sample->Release();
-
-	return true;
+    *left_hand_sample = queued_sample;
+    return true;
 }
 
 // FrameObserver from Device Filter
