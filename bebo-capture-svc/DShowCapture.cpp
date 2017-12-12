@@ -177,8 +177,6 @@ void DShowCapture::AddDeviceFilter(GUID device_guid) {
 	hr = device_output_pin_->QueryInterface(stream_config.GetAddressOf());
 	RETURN_ON_FAILED(hr, "Failed to query IAMStreamConfig interface. hr: %d", hr);
 	
-	//  set output device format
-
 	int count = 0, size = 0;
 	hr = stream_config->GetNumberOfCapabilities(&count, &size);
 	RETURN_ON_FAILED(hr, "Failed to get number of capabilities. hr: %d", hr);
@@ -202,6 +200,20 @@ void DShowCapture::AddDeviceFilter(GUID device_guid) {
 	AM_MEDIA_TYPE *format;
 	hr = stream_config->GetStreamCaps(capability_index, &format, caps.get());
 	RETURN_ON_FAILED(hr, "Failed to get specific device caps. index: %d, hr: %d", capability_index, hr);
+
+#if 0
+	VIDEOINFOHEADER *vih = reinterpret_cast<VIDEOINFOHEADER*>(format->pbFormat);
+	BITMAPINFOHEADER *bmih = NULL;
+	if (format->formattype == FORMAT_VideoInfo) {
+		bmih = &reinterpret_cast<VIDEOINFOHEADER*>(format->pbFormat)->bmiHeader;
+	} else {
+		bmih = &reinterpret_cast<VIDEOINFOHEADER2*>(format->pbFormat)->bmiHeader;
+	}
+	vih->AvgTimePerFrame = UNITS / 30;
+	bmih->biWidth = 1280;
+	bmih->biHeight = 720;
+	bmih->biSizeImage = 1280*720*(bmih->biBitCount >> 3);
+#endif
 
 	pmt_log::debug_pmt("setting device format", format);
 
