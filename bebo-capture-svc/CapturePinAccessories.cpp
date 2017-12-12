@@ -314,6 +314,10 @@ HRESULT CPushPinDesktop::SetMediaType(const CMediaType *pMediaType)
 		break;
 	}
 
+
+    if (pvi->bmiHeader.biHeight != 720 || pvi->bmiHeader.biWidth != 1280 ) {
+        return E_INVALIDARG;
+    }
 	// The frame rate at which your filter should produce data is determined by the AvgTimePerFrame field of VIDEOINFOHEADER
 #if 0
 	(if (pvi->AvgTimePerFrame) { // or should Set Format accept this? hmm...
@@ -698,6 +702,7 @@ HRESULT CPushPinDesktop::GetMediaType(int iPosition, CMediaType *pmt) // AM_MEDI
 	REFERENCE_TIME fps = PIN_FPS[iPosition / PIN_RESOLUTION_SIZE];
 	LONGLONG fps_n = fps / UNITS;
 
+
 	// the i420 freak-o added just for FME's benefit...
 	//pvi->bmiHeader.biCompression = 0x30323449; // => ASCII "I420" is apparently right here...
 	pvi->bmiHeader.biCompression = MAKEFOURCC('I', '4', '2', '0');
@@ -730,7 +735,7 @@ HRESULT CPushPinDesktop::GetMediaType(int iPosition, CMediaType *pmt) // AM_MEDI
 		pmt->SetSubtype(&SubTypeGUID);
 	}
 
-	// info_pmt("GetMediaType", pmt);
+	info_pmt("GetMediaType", pmt);
 	return NOERROR;
 
 } // GetMediaType

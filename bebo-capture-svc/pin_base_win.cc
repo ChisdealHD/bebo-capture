@@ -228,8 +228,18 @@ STDMETHODIMP PinBase::NotifyAllocator(IMemAllocator* allocator,
 
 STDMETHODIMP PinBase::GetAllocatorRequirements(
     ALLOCATOR_PROPERTIES* properties) {
-	debug("GetAllocatorRequirements");
-  return E_NOTIMPL;
+	debug("GetAllocatorRequirements in align: %d, size: %d, prefix: %d, count: %d", properties->cbAlign,
+        properties->cbBuffer,
+        properties->cbPrefix,
+        properties->cBuffers );
+    properties->cBuffers = 30;
+    properties->cbBuffer = 1843200;
+	debug("GetAllocatorRequirements out align: %d, size: %d, prefix: %d, count: %d", properties->cbAlign,
+        properties->cbBuffer,
+        properties->cbPrefix,
+        properties->cBuffers );
+    return S_OK;
+  //return E_NOTIMPL;
 }
 
 STDMETHODIMP PinBase::ReceiveMultiple(IMediaSample** samples,

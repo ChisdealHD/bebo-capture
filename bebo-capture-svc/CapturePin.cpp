@@ -438,20 +438,20 @@ HRESULT CPushPinDesktop::FillBuffer(IMediaSample *pSample)
 		int code = E_FAIL;
 
 		switch (m_iCaptureType) {
-		case CAPTURE_INJECT:
-			code = FillBuffer_Inject(pSample);
-			break;
-		case CAPTURE_DESKTOP: 
-			code = FillBuffer_Desktop(pSample);
-			break;
-		case CAPTURE_GDI: 
-			code = FillBuffer_GDI(pSample);
-			break;
-		case CAPTURE_DSHOW:
-			code = FillBuffer_DShow(pSample);
-			break;
-		default:
-			error("UNKNOWN CAPTURE TYPE: %d", m_iCaptureType);
+            case CAPTURE_INJECT:
+                code = FillBuffer_Inject(pSample);
+                break;
+            case CAPTURE_DESKTOP: 
+                code = FillBuffer_Desktop(pSample);
+                break;
+            case CAPTURE_GDI: 
+                code = FillBuffer_GDI(pSample);
+                break;
+            case CAPTURE_DSHOW:
+                code = FillBuffer_DShow(pSample);
+                break;
+            default:
+                error("UNKNOWN CAPTURE TYPE: %d", m_iCaptureType);
 		}			
 
 		// failed to initialize desktop capture, sleep is to reduce the # of log that we failed
@@ -463,6 +463,7 @@ HRESULT CPushPinDesktop::FillBuffer(IMediaSample *pSample)
 		} else if (code == 2) { // not initialized yet
 			gotFrame = false;
 			long sleep = (m_iCaptureType == CAPTURE_DESKTOP) ? 3000 : 300;
+            debug("sleping %d before reading registry", sleep);
 			ProcessRegistryReadEvent(sleep);
 			continue;
 		} else if (code == 3) { // black frame
@@ -498,7 +499,7 @@ HRESULT CPushPinDesktop::FillBuffer(IMediaSample *pSample)
 		REFERENCE_TIME startFrame = m_iFrameNumber * m_rtFrameLength;
 		REFERENCE_TIME endFrame = startFrame + m_rtFrameLength;
 		pSample->SetTime((REFERENCE_TIME *)&startFrame, (REFERENCE_TIME *)&endFrame);
-		CSourceStream::m_pFilter->StreamTime(now);
+	    CSourceStream::m_pFilter->StreamTime(now);
 		debug("timestamping (%11f) video packet %llf -> %llf length:(%11f) drift:(%llf)", 0.0001 * now, 0.0001 * startFrame, 0.0001 * endFrame, 0.0001 * (endFrame - startFrame), 0.0001 * (now - previousFrame));
 	}
 
@@ -729,11 +730,6 @@ HRESULT CPushPinDesktop::FillBuffer_DShow(IMediaSample *pSample)
 	CheckPointer(pSample, E_POINTER);
 
 	dshowCapture->Initialize();
-
-	CRefTime now;
-	now = 0;
-
-	CSourceStream::m_pFilter->StreamTime(now);
 	bool frame = dshowCapture->GetFrame(pSample);
 	if (!frame) { // not initialized yet
 		return 2;
