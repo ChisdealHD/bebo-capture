@@ -11,9 +11,8 @@ public:
 
 	void QueryCapabilities();
 	void EnumFilters();
-	void AddDeviceFilter();
+	void AddDeviceFilter(GUID device_guid);
 	void CreateFilterGraph();
-	void AddDemuxFilter();
 	void AddSinkFilter();
 	void Run();
 
@@ -25,11 +24,13 @@ public:
 private:
 	IGraphBuilder *graph;
 	ICaptureGraphBuilder2 *builder;
-	IMediaControl *mediaControl;
-	IBaseFilter *deviceFilter;
+	IMediaControl *media_control_;
 
-	SinkFilter *sinkFilter;
-	IPin *sinkInputPin;
+	IBaseFilter *device_filter_;
+	IPin *device_output_pin_;
+
+	SinkFilter *sink_filter_;
+	IPin *sink_input_pin_;
 	shared_queue<IMediaSample*> media_sample_queue_;
 
 	bool initialized;
