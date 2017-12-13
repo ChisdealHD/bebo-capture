@@ -11,6 +11,7 @@ public:
 
 	void QueryCapabilities();
 	void AddDeviceFilter(GUID device_guid);
+	void AddDeviceAudioRendererFilter();
 	void CreateFilterGraph();
 	void Run();
 
@@ -25,10 +26,15 @@ private:
 	ComPtr<IMediaControl> media_control_;
 
 	ComPtr<IBaseFilter> device_filter_;
-	ComPtr<IPin> device_output_pin_;
+	ComPtr<IPin> device_video_output_pin_;
+	ComPtr<IPin> device_audio_output_pin_;
+
+	ComPtr<SinkFilter> audio_renderer_filter_;
+	ComPtr<IPin> audio_renderer_pin_;
 
 	ComPtr<SinkFilter> sink_filter_;
 	ComPtr<IPin> sink_input_pin_;
+
 	shared_queue<IMediaSample*> media_sample_queue_;
 
 	bool initialized_;

@@ -21,15 +21,16 @@
 	} \
  }
 
-DShowCapture::DShowCapture():
+DShowCapture::DShowCapture() :
 	initialized_(false),
 	sink_filter_(nullptr),
 	sink_input_pin_(nullptr),
-    graph_(nullptr),
-    builder_(nullptr),
-    media_control_(nullptr),
-    device_filter_(nullptr),
-    device_output_pin_(nullptr)
+	graph_(nullptr),
+	builder_(nullptr),
+	media_control_(nullptr),
+	device_filter_(nullptr),
+	device_video_output_pin_(nullptr),
+	device_audio_output_pin_(nullptr)
 {
 	sink_filter_ = new SinkFilter(this);
 	sink_input_pin_ = sink_filter_->GetPin(0);
@@ -146,11 +147,11 @@ namespace pmt_log {
 
 	void debug_pmt(char* label, const AM_MEDIA_TYPE *pmtIn)
 	{
-        const int SIZE = 10 * 4096;
-        wchar_t buffer[SIZE];
-        sprintf_pmt(buffer, SIZE, label, pmtIn);
-        debug("%ls", buffer);
-    }
+		const int SIZE = 10 * 4096;
+		wchar_t buffer[SIZE];
+		sprintf_pmt(buffer, SIZE, label, pmtIn);
+		debug("%ls", buffer);
+	}
 }
 
 #endif
@@ -158,64 +159,64 @@ namespace pmt_log {
 void DShowCapture::QueryCapabilities() {}
 
 void DShowCapture::CreateFilterGraph() {
-    HRESULT hr;
+	HRESULT hr;
 
-    hr = CoCreateInstance(CLSID_FilterGraph, NULL, CLSCTX_INPROC_SERVER,
-        IID_IFilterGraph, (void**)graph_.GetAddressOf());
-    RETURN_ON_FAILED(hr, "CoCreateInstance IID_IFilterGraph failed. hr: %d", hr);
+	hr = CoCreateInstance(CLSID_FilterGraph, NULL, CLSCTX_INPROC_SERVER,
+		IID_IFilterGraph, (void**)&graph_);
+	RETURN_ON_FAILED(hr, "CoCreateInstance IID_IFilterGraph failed. hr: %d", hr);
 
-    hr = CoCreateInstance(CLSID_CaptureGraphBuilder2, NULL,
-        CLSCTX_INPROC_SERVER,
-        IID_ICaptureGraphBuilder2, (void**)builder_.GetAddressOf());
-    RETURN_ON_FAILED(hr, "CoCreateInstance IID_ICaptureGraphBuilder2 failed. hr: %d", hr);
+	hr = CoCreateInstance(CLSID_CaptureGraphBuilder2, NULL,
+		CLSCTX_INPROC_SERVER,
+		IID_ICaptureGraphBuilder2, (void**)&builder_);
+	RETURN_ON_FAILED(hr, "CoCreateInstance IID_ICaptureGraphBuilder2 failed. hr: %d", hr);
 
-    hr = builder_->SetFiltergraph(graph_.Get());
-    RETURN_ON_FAILED(hr, "Failed to setFilterGraph on GraphBuilder. hr: %d", hr);
+	hr = builder_->SetFiltergraph(graph_.Get());
+	RETURN_ON_FAILED(hr, "Failed to setFilterGraph on GraphBuilder. hr: %d", hr);
 
-    hr = graph_->QueryInterface(IID_IMediaControl, (void**)media_control_.GetAddressOf());
-    RETURN_ON_FAILED(hr, "Failed to QueryInterface IID_IMediaControl. hr: %d", hr);
+	hr = graph_->QueryInterface(IID_IMediaControl, (void**)&media_control_);
+	RETURN_ON_FAILED(hr, "Failed to QueryInterface IID_IMediaControl. hr: %d", hr);
 }
 
 void DShowCapture::AddDeviceFilter(GUID device_guid) {
-    HRESULT hr = CoCreateInstance(device_guid, NULL, CLSCTX_INPROC, IID_IBaseFilter, (void **)device_filter_.GetAddressOf());
-    RETURN_ON_FAILED(hr, "Failed to create device filter. hr: %d", hr);
+	HRESULT hr = CoCreateInstance(device_guid, NULL, CLSCTX_INPROC, IID_IBaseFilter, (void **)&device_filter_);
+	RETURN_ON_FAILED(hr, "Failed to create device filter. hr: %d", hr);
 
-    hr = graph_->AddFilter(device_filter_.Get(), L"Elgato Game Capture HD");
-    RETURN_ON_FAILED(hr, "Failed to add device filter. hr: %d", hr);
+	hr = graph_->AddFilter(device_filter_.Get(), NULL);
+	RETURN_ON_FAILED(hr, "Failed to add device filter. hr: %d", hr);
 
-    hr = graph_->AddFilter(sink_filter_.Get(), L"Bebo Sink Filter");
-    RETURN_ON_FAILED(hr, "Failed to add sink filter. hr: %d", hr);
+	hr = graph_->AddFilter(sink_filter_.Get(), NULL);
+	RETURN_ON_FAILED(hr, "Failed to add sink filter. hr: %d", hr);
 
-    hr = builder_->FindPin(device_filter_.Get(), PINDIR_OUTPUT, &PIN_CATEGORY_CAPTURE, &MEDIATYPE_Video, TRUE, 0, device_output_pin_.GetAddressOf());
-    RETURN_ON_FAILED(hr, "Failed to find video capture output pin. hr: %d", hr);
+	hr = builder_->FindPin(device_filter_.Get(), PINDIR_OUTPUT, &PIN_CATEGORY_CAPTURE, &MEDIATYPE_Video, TRUE, 0, &device_video_output_pin_);
+	RETURN_ON_FAILED(hr, "Failed to find video capture output pin. hr: %d", hr);
 
-    ComPtr<IAMStreamConfig> stream_config;
-    hr = device_output_pin_->QueryInterface(stream_config.GetAddressOf());
-    RETURN_ON_FAILED(hr, "Failed to query IAMStreamConfig interface. hr: %d", hr);
+	ComPtr<IAMStreamConfig> stream_config;
+	hr = device_video_output_pin_->QueryInterface(stream_config.GetAddressOf());
+	RETURN_ON_FAILED(hr, "Failed to query IAMStreamConfig interface. hr: %d", hr);
 
-    int count = 0, size = 0;
-    hr = stream_config->GetNumberOfCapabilities(&count, &size);
-    RETURN_ON_FAILED(hr, "Failed to get number of capabilities. hr: %d", hr);
+	int count = 0, size = 0;
+	hr = stream_config->GetNumberOfCapabilities(&count, &size);
+	RETURN_ON_FAILED(hr, "Failed to get number of capabilities. hr: %d", hr);
 
-    std::unique_ptr<BYTE[]> caps(new BYTE[size] {0});
+	std::unique_ptr<BYTE[]> caps(new BYTE[size]{ 0 });
 
-    int capability_index = 1;
-    for (int i = 0; i < count; i++) {
-        AM_MEDIA_TYPE *media_type;
-        HRESULT hr = stream_config->GetStreamCaps(i, &media_type, caps.get());
-        if (hr != S_OK) {
-            error("HR:%d, GetStreamCaps != S_OK", hr);
-            continue;
-        }
+	int capability_index = 1;
+	for (int i = 0; i < count; i++) {
+		AM_MEDIA_TYPE *media_type;
+		HRESULT hr = stream_config->GetStreamCaps(i, &media_type, caps.get());
+		if (hr != S_OK) {
+			error("HR:%d, GetStreamCaps != S_OK", hr);
+			continue;
+		}
 
-        pmt_log::debug_pmt("GetStreamCaps", media_type);
-        DeleteMediaType(media_type);
-    }
+		pmt_log::debug_pmt("GetStreamCaps", media_type);
+		DeleteMediaType(media_type);
+	}
 
-    // TODO: Make a function to find the best match capability
-    AM_MEDIA_TYPE *format;
-    hr = stream_config->GetStreamCaps(capability_index, &format, caps.get());
-    RETURN_ON_FAILED(hr, "Failed to get specific device caps. index: %d, hr: %d", capability_index, hr);
+	// TODO: Make a function to find the best match capability
+	AM_MEDIA_TYPE *format;
+	hr = stream_config->GetStreamCaps(capability_index, &format, caps.get());
+	RETURN_ON_FAILED(hr, "Failed to get specific device caps. index: %d, hr: %d", capability_index, hr);
 
 #if 0
 	if (format->formattype == FORMAT_VideoInfo) {
@@ -225,72 +226,99 @@ void DShowCapture::AddDeviceFilter(GUID device_guid) {
 	}
 #endif
 
-    pmt_log::debug_pmt("setting device format", format);
+	pmt_log::debug_pmt("setting device format", format);
 
-    hr = stream_config->SetFormat(format); // TODO: This sometimes return S_FALSE
-    RETURN_ON_FAILED(hr, "Failed to set device format. hr: %d", hr);
+	hr = stream_config->SetFormat(format); // TODO: This sometimes return S_FALSE
+	RETURN_ON_FAILED(hr, "Failed to set device format. hr: %d", hr);
 
 #if 0
 
-    ComPtr<IAMBufferNegotiation> buffer_negotiation;
-    hr = device_output_pin_->QueryInterface(buffer_negotiation.GetAddressOf());
-    RETURN_ON_FAILED(hr, "Failed to query IAMBufferNegotiation interface. hr: %d", hr);
-    ALLOCATOR_PROPERTIES allocator_properties;
-    memset(&allocator_properties, 0, sizeof(allocator_properties));
-    buffer_negotiation->GetAllocatorProperties(&allocator_properties);
-    info("current allocator Properties count:%d", allocator_properties.cBuffers);
+	ComPtr<IAMBufferNegotiation> buffer_negotiation;
+	hr = device_output_pin_->QueryInterface(buffer_negotiation.GetAddressOf());
+	RETURN_ON_FAILED(hr, "Failed to query IAMBufferNegotiation interface. hr: %d", hr);
+	ALLOCATOR_PROPERTIES allocator_properties;
+	memset(&allocator_properties, 0, sizeof(allocator_properties));
+	buffer_negotiation->GetAllocatorProperties(&allocator_properties);
+	info("current allocator Properties count:%d", allocator_properties.cBuffers);
 
-    if (allocator_properties.cBuffers < 2) {
-        allocator_properties.cBuffers = 5;
-        hr = buffer_negotiation->SuggestAllocatorProperties(&allocator_properties);
-        if (hr != S_OK) {
-            warn("SuggestAllocatorProperties returned %d", hr);
-        }
-    }
+	if (allocator_properties.cBuffers < 2) {
+		allocator_properties.cBuffers = 5;
+		hr = buffer_negotiation->SuggestAllocatorProperties(&allocator_properties);
+		if (hr != S_OK) {
+			warn("SuggestAllocatorProperties returned %d", hr);
+		}
+	}
 #endif
 
-    DeleteMediaType(format);
-    info("Finished adding device filter. HR: %d", hr);
+	DeleteMediaType(format);
+	info("Finished adding device filter. HR: %d", hr);
 
-    hr = graph_->ConnectDirect(device_output_pin_.Get(), sink_input_pin_.Get(), NULL);
-    RETURN_ON_FAILED(hr, "Failed to directly connect device output pin to sink input pin. hr: %d", hr);
+	hr = graph_->ConnectDirect(device_video_output_pin_.Get(), sink_input_pin_.Get(), NULL);
+	RETURN_ON_FAILED(hr, "Failed to directly connect device output pin to sink input pin. hr: %d", hr);
 
-    info("Finished adding sink filter. HR: %d", hr);
+	info("Finished adding sink filter. HR: %d", hr);
+}
+
+void DShowCapture::AddDeviceAudioRendererFilter()
+{
+	HRESULT hr;
+
+	hr = CoCreateInstance(CLSID_DSoundRender, NULL, CLSCTX_INPROC, 
+		IID_IBaseFilter, (void**) &audio_renderer_filter_);
+	RETURN_ON_FAILED(hr, "Failed CoCreateInstance DirectSound Renderer. hr: %d", hr);
+
+	hr = graph_->AddFilter(audio_renderer_filter_.Get(), NULL);
+	RETURN_ON_FAILED(hr, "Failed to add DirectSound audio renderer filter. hr: %d", hr);
+
+	hr = builder_->FindPin(device_filter_.Get(), PINDIR_OUTPUT, &PIN_CATEGORY_CAPTURE, &MEDIATYPE_Audio, TRUE, 0, &device_audio_output_pin_);
+	RETURN_ON_FAILED(hr, "Failed to find audio output pin. hr: %d", hr);
+
+	// TODO: if elgato
+	ComPtr<IAMClockSlave> clock_slave;
+	hr = audio_renderer_filter_->QueryInterface(IID_IAMClockSlave, (void**)&clock_slave);
+	RETURN_ON_FAILED(hr, "Failed to query interface clock slave. hr: %d", hr);
+
+	hr = clock_slave->SetErrorTolerance(200);
+	RETURN_ON_FAILED(hr, "Failed to set error tolerance. hr: %d", hr);
+
+	hr = builder_->RenderStream(NULL, &MEDIATYPE_Audio, device_audio_output_pin_.Get(), NULL, audio_renderer_filter_.Get());
+	RETURN_ON_FAILED(hr, "Failed to render audio stream. hr: %d", hr);
 }
 
 bool DShowCapture::Initialize() {
-    if (initialized_) return true;
+	if (initialized_) return true;
 
-    initialized_ = true;
-    CreateFilterGraph();
-    AddDeviceFilter(CLSID_ElgatoVideoCaptureFilter);
-    Run();
-    return true;
+	initialized_ = true;
+	CreateFilterGraph();
+	AddDeviceFilter(CLSID_ElgatoVideoCaptureFilter);
+	AddDeviceAudioRendererFilter();
+	Run();
+	return true;
 }
 
 void DShowCapture::Run() {
-    info("DShowCapture::Run()");
-    HRESULT hr = media_control_->Pause();
-    RETURN_ON_FAILED(hr, "Failed to pause media control before running. hr: %d", hr);
+	info("DShowCapture::Run()");
+	HRESULT hr = media_control_->Pause();
+	RETURN_ON_FAILED(hr, "Failed to pause media control before running. hr: %d", hr);
 
-    hr = media_control_->Run();
-    info("DShowCapture::Run() hr: %d", hr);
+	hr = media_control_->Run();
+	info("DShowCapture::Run() hr: %d", hr);
 }
 
 // FillBuffer - Blocking
 bool DShowCapture::GetFrame(IMediaSample ** left_hand_sample)
 {
-    debug("GetFrame - start - queue size %d", media_sample_queue_.size());
+	debug("GetFrame - start - queue size %d", media_sample_queue_.size());
 
 	IMediaSample *queued_sample;
-    long ms = 1000;
+	long ms = 1000;
 	while (!media_sample_queue_.wait_for_and_pop(queued_sample, ms)) {
-        debug("No sample within %d ms", ms);
+		debug("No sample within %d ms", ms);
 		return false;
 	}
 	debug("GetFrame - got frame from queue");
-    *left_hand_sample = queued_sample;
-    return true;
+	*left_hand_sample = queued_sample;
+	return true;
 }
 
 // FrameObserver from Device Filter
