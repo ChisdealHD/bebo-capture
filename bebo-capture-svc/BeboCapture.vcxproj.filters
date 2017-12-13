@@ -66,12 +66,6 @@
     <ClInclude Include="..\third_party\g2log\crashhandler.h">
       <Filter>logger</Filter>
     </ClInclude>
-    <ClInclude Include="IVideoCaptureFilter.h">
-      <Filter>capture-devices</Filter>
-    </ClInclude>
-    <ClInclude Include="IVideoCaptureFilterTypes.h">
-      <Filter>capture-devices</Filter>
-    </ClInclude>
     <ClInclude Include="DShowCapture.h" />
     <ClInclude Include="sink_filter_observer_win.h" />
     <ClInclude Include="sink_filter_win.h" />
@@ -81,6 +75,12 @@
     <ClInclude Include="shared_queue.h" />
     <ClInclude Include="..\third_party\g2log\shared_queue.h">
       <Filter>logger</Filter>
+    </ClInclude>
+    <ClInclude Include="elgato\IVideoCaptureFilter.h">
+      <Filter>capture-devices</Filter>
+    </ClInclude>
+    <ClInclude Include="elgato\IVideoCaptureFilterTypes.h">
+      <Filter>capture-devices</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

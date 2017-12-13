@@ -12,6 +12,7 @@ public:
 	void QueryCapabilities();
 	void AddDeviceFilter(GUID device_guid);
 	void AddDeviceAudioRendererFilter();
+    HRESULT GetDeviceSettings();
 	void CreateFilterGraph();
 	void Run();
 

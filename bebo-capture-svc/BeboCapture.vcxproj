@@ -358,12 +358,12 @@
     <ClInclude Include="CaptureGuids.h" />
     <ClInclude Include="Capture.h" />
     <ClInclude Include="DShowCapture.h" />
+    <ClInclude Include="elgato\IVideoCaptureFilter.h" />
+    <ClInclude Include="elgato\IVideoCaptureFilterTypes.h" />
     <ClInclude Include="filter_base_win.h" />
     <ClInclude Include="GameCapture.h" />
     <ClInclude Include="GDICapture.h" />
     <ClInclude Include="IBeboCapture.h" />
-    <ClInclude Include="IVideoCaptureFilter.h" />
-    <ClInclude Include="IVideoCaptureFilterTypes.h" />
     <ClInclude Include="Logging.h" />
     <ClInclude Include="pin_base_win.h" />
     <ClInclude Include="registry.h" />

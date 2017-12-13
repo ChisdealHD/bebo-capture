@@ -1,5 +1,6 @@
 #pragma once
 
+#include <Windows.h>
 namespace ElgatoGameCapture
 {
 	/*=============================================================================
@@ -136,7 +137,7 @@ namespace ElgatoGameCapture
 		VIDEO_CAPTURE_FILTER_VIDEO_INPUT		videoInput;						//!< Video input (e.g. HDMI)
 		VIDEO_CAPTURE_FILTER_VID_ENC_PROFILE	profile;						//!< Video encoder profile (maximum resolution)
 		BOOL									useAnalogAudioInput;			//!< for HDMI with analog audio input
-		VIDEO_CAPTURE_FILTER_COLOR_RANGE		hdmiColorRange;					//!< HDMI color range
+		VIDEO_CAPTURE_FILTER_COLOR_RANGE		hdmiColorRange;					//!< HDMI color VIDEO_CAPTURE_FILTER_SETTINGS_EX
 		int										brightness;						//!< Brightness (0-10000)
 		int										contrast;						//!< Contrast   (0-10000)
 		int										saturation;						//!< Saturation (0-10000)
