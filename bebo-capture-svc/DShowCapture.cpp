@@ -157,6 +157,66 @@ namespace pmt_log {
 
 void DShowCapture::QueryCapabilities() {}
 
+LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+    return DefWindowProc(hwnd, uMsg, wParam, lParam);
+}
+
+
+HRESULT DShowCapture::ShowProperties()
+{
+    HRESULT hr = E_FAIL;
+    const wchar_t CLASS_NAME[] = L"Sample Window Class";
+
+    WNDCLASS wc = {};
+
+    wc.lpfnWndProc = WindowProc;
+    wc.hInstance = NULL;
+    wc.lpszClassName = CLASS_NAME;
+    RegisterClass(&wc);
+
+    HWND hwnd = CreateWindowEx(
+        0,                              // Optional window styles.
+        CLASS_NAME,                     // Window class
+        L"xLearn to Program Windows",    // Window text
+        WS_OVERLAPPEDWINDOW,            // Window style
+
+                                        // Size and position
+        CW_USEDEFAULT, CW_USEDEFAULT, 400, 400,
+
+        NULL,       // Parent window    
+        NULL,       // Menu
+        NULL,  // Instance handle
+        NULL        // Additional application data
+    );
+
+    if (hwnd == NULL) {
+        error("Prop Window Result %d", GetLastError());
+    } else {
+        ShowWindow(hwnd, 10);
+    }
+
+    ComPtr<ISpecifyPropertyPages> pSpec;
+    hr = device_filter_.Get()->QueryInterface(IID_ISpecifyPropertyPages, (void **)&pSpec);
+    if (hr == S_OK) {
+
+        CAUUID  cauuid;
+        hr = pSpec->GetPages(&cauuid);
+        if (hr == S_OK && cauuid.cElems > 0) {
+
+            IUnknown *pFilterUnk;
+            device_filter_.Get()->QueryInterface(IID_IUnknown, (void **)&pFilterUnk);
+
+            hr = OleCreatePropertyFrame( NULL, 40, 40, NULL, 1, &pFilterUnk,
+                cauuid.cElems, (GUID *)cauuid.pElems, 0, 0, NULL);
+            CoTaskMemFree(cauuid.pElems);
+            debug("Prop Window Result 0x%xul", hr);
+
+        }
+    }
+    
+    return hr;
+}
+
 void DShowCapture::CreateFilterGraph() {
     HRESULT hr;
 
@@ -272,15 +332,17 @@ void DShowCapture::Run() {
     info("DShowCapture::Run()");
     HRESULT hr = media_control_->Pause();
     RETURN_ON_FAILED(hr, "Failed to pause media control before running. hr: %d", hr);
-
     hr = media_control_->Run();
     info("DShowCapture::Run() hr: %d", hr);
+
 }
 
 // FillBuffer - Blocking
 bool DShowCapture::GetFrame(IMediaSample ** left_hand_sample)
 {
     debug("GetFrame - start - queue size %d", media_sample_queue_.size());
+
+
 
 	IMediaSample *queued_sample;
     long ms = 1000;
@@ -290,6 +352,19 @@ bool DShowCapture::GetFrame(IMediaSample ** left_hand_sample)
 	}
 	debug("GetFrame - got frame from queue");
     *left_hand_sample = queued_sample;
+    static int cnt = 0;
+    cnt++;
+    if (cnt == 120) {
+        ShowProperties();
+
+    } else if(cnt > 120) {
+        MSG msg;
+        while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
+        {
+            TranslateMessage(&msg);
+            DispatchMessage(&msg);
+        }
+    }
     return true;
 }
 

@@ -10,6 +10,7 @@ public:
 	~DShowCapture();
 
 	void QueryCapabilities();
+    HRESULT ShowProperties();
 	void AddDeviceFilter(GUID device_guid);
 	void CreateFilterGraph();
 	void Run();
