@@ -39,9 +39,8 @@ GUID kMediaSubTypeY16 = {0x20363159,
 SinkFilterObserver::~SinkFilterObserver() {
 }
 
-SinkFilter::SinkFilter(SinkFilterObserver* observer) : input_pin_(NULL) {
-  info("SinkFilter");
-  input_pin_.Attach(new SinkInputPin(this, observer));
+SinkFilter::SinkFilter(SinkFilterObserver* observer) : input_pin_(nullptr) {
+  input_pin_ = new SinkInputPin(this, observer);
 }
 
 /*
@@ -67,6 +66,5 @@ STDMETHODIMP SinkFilter::GetClassID(CLSID* clsid) {
 
 SinkFilter::~SinkFilter() {
   input_pin_->SetOwner(NULL);
-  info("~SinkFilter");
 }
 

@@ -151,6 +151,11 @@ CPushPinDesktop::~CPushPinDesktop()
 		m_pGDICapture = nullptr;
 	}
 
+	if (dshowCapture) {
+		delete dshowCapture;
+		dshowCapture = nullptr;
+	}
+
 	if (readRegistryEvent) {
 		CloseHandle(readRegistryEvent);
 	}

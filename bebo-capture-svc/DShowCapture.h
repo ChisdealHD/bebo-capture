@@ -12,7 +12,6 @@ public:
 	void QueryCapabilities();
 	void AddDeviceFilter(GUID device_guid);
 	void CreateFilterGraph();
-	void AddSinkFilter();
 	void Run();
 
 	bool Initialize();
@@ -21,15 +20,15 @@ public:
 	void FrameReceived(IMediaSample* sample) override;
 
 private:
-	IGraphBuilder *graph_;
-	ICaptureGraphBuilder2 *builder_;
-	IMediaControl *media_control_;
+	ComPtr<IGraphBuilder> graph_;
+	ComPtr<ICaptureGraphBuilder2> builder_;
+	ComPtr<IMediaControl> media_control_;
 
-	IBaseFilter *device_filter_;
-	IPin *device_output_pin_;
+	ComPtr<IBaseFilter> device_filter_;
+	ComPtr<IPin> device_output_pin_;
 
-	SinkFilter *sink_filter_;
-	IPin *sink_input_pin_;
+	ComPtr<SinkFilter> sink_filter_;
+	ComPtr<IPin> sink_input_pin_;
 	shared_queue<IMediaSample*> media_sample_queue_;
 
 	bool initialized_;

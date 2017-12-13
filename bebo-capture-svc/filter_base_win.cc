@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "filter_base_win.h"
+#include "logging.h"
 
 using namespace Microsoft::WRL;
 

@@ -19,7 +19,6 @@ static DWORD GetArea(const BITMAPINFOHEADER& info_header) {
 
 SinkInputPin::SinkInputPin(IBaseFilter* filter, SinkFilterObserver* observer)
     : PinBase(filter), requested_frame_rate_(0), observer_(observer) {
-	info("SinkInputPin");
 }
 
 /*
@@ -37,6 +36,7 @@ void SinkInputPin::SetRequestedMediaFormat(
 */
 
 bool SinkInputPin::IsMediaTypeValid(const AM_MEDIA_TYPE* media_type) {
+
   const GUID type = media_type->majortype;
   if (type != MEDIATYPE_Video)
     return false;
@@ -116,6 +116,7 @@ bool SinkInputPin::IsMediaTypeValid(const AM_MEDIA_TYPE* media_type) {
 }
 
 bool SinkInputPin::GetValidMediaType(int index, AM_MEDIA_TYPE* media_type) {
+
   if (media_type->cbFormat < sizeof(VIDEOINFOHEADER))
     return false;
 
@@ -233,6 +234,5 @@ HRESULT SinkInputPin::Receive(IMediaSample* sample) {
 }
 
 SinkInputPin::~SinkInputPin() {
-	info("~SinkInputPin");
 }
 

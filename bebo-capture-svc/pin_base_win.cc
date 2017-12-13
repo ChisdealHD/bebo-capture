@@ -121,8 +121,7 @@ STDMETHODIMP PinBase::Connect(IPin* receive_pin,
     return E_POINTER;
 
   current_media_type_ = *media_type;
-  receive_pin->AddRef();
-  connected_pin_.Attach(receive_pin);
+  connected_pin_.CopyTo(&receive_pin);
   HRESULT hr = receive_pin->ReceiveConnection(this, media_type);
 
   return hr;
@@ -136,8 +135,7 @@ STDMETHODIMP PinBase::ReceiveConnection(IPin* connector,
     return VFW_E_TYPE_NOT_ACCEPTED;
 
   current_media_type_ = *media_type;
-  connector->AddRef();
-  connected_pin_.Attach(connector);
+  connected_pin_.CopyTo(&connector);
   return S_OK;
 }
 
@@ -150,11 +148,10 @@ STDMETHODIMP PinBase::Disconnect() {
 }
 
 STDMETHODIMP PinBase::ConnectedTo(IPin** pin) {
-  *pin = connected_pin_.Get();
   if (!connected_pin_.Get())
     return VFW_E_NOT_CONNECTED;
 
-  connected_pin_.Get()->AddRef();
+  connected_pin_.CopyTo(pin);
   return S_OK;
 }
 
@@ -245,7 +242,6 @@ STDMETHODIMP PinBase::GetAllocatorRequirements(
 STDMETHODIMP PinBase::ReceiveMultiple(IMediaSample** samples,
                                       long sample_count,
                                       long* processed) {
-	debug("ReceiveMultiple");
   HRESULT hr = S_OK;
   *processed = 0;
   while (sample_count--) {

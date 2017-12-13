@@ -22,47 +22,33 @@
  }
 
 DShowCapture::DShowCapture():
-	sink_filter_(NULL),
-	sink_input_pin_(NULL),
 	initialized_(false),
-    graph_(NULL),
-    builder_(NULL),
-    media_control_(NULL),
-    device_filter_(NULL),
-    device_output_pin_(NULL)
+	sink_filter_(nullptr),
+	sink_input_pin_(nullptr),
+    graph_(nullptr),
+    builder_(nullptr),
+    media_control_(nullptr),
+    device_filter_(nullptr),
+    device_output_pin_(nullptr)
 {
 	sink_filter_ = new SinkFilter(this);
 	sink_input_pin_ = sink_filter_->GetPin(0);
 }
 
 DShowCapture::~DShowCapture() {
-	if (media_control_) {
+	if (media_control_.Get()) {
 		media_control_->Stop();
-		media_control_->Release();
-	}
-
-	if (builder_) {
-		builder_->Release();
 	}
 
 	if (graph_) {
 		if (device_filter_) {
-			graph_->RemoveFilter(device_filter_);
-			device_filter_->Release();
-			device_output_pin_ = NULL;
+			graph_->RemoveFilter(device_filter_.Get());
 		}
 
 		if (sink_filter_) {
-			if (graph_) {
-				graph_->RemoveFilter(sink_filter_);
-			}
-			sink_filter_->Release();
-			sink_input_pin_ = NULL;
+			graph_->RemoveFilter(sink_filter_.Get());
 		}
-
-		graph_->Release();
 	}
-
 }
 
 #if 1
@@ -175,32 +161,32 @@ void DShowCapture::CreateFilterGraph() {
     HRESULT hr;
 
     hr = CoCreateInstance(CLSID_FilterGraph, NULL, CLSCTX_INPROC_SERVER,
-        IID_IFilterGraph, (void**)&graph_);
+        IID_IFilterGraph, (void**)graph_.GetAddressOf());
     RETURN_ON_FAILED(hr, "CoCreateInstance IID_IFilterGraph failed. hr: %d", hr);
 
     hr = CoCreateInstance(CLSID_CaptureGraphBuilder2, NULL,
         CLSCTX_INPROC_SERVER,
-        IID_ICaptureGraphBuilder2, (void**)&builder_);
+        IID_ICaptureGraphBuilder2, (void**)builder_.GetAddressOf());
     RETURN_ON_FAILED(hr, "CoCreateInstance IID_ICaptureGraphBuilder2 failed. hr: %d", hr);
 
-    hr = builder_->SetFiltergraph(graph_);
+    hr = builder_->SetFiltergraph(graph_.Get());
     RETURN_ON_FAILED(hr, "Failed to setFilterGraph on GraphBuilder. hr: %d", hr);
 
-    hr = graph_->QueryInterface(IID_IMediaControl, (void**)&media_control_);
+    hr = graph_->QueryInterface(IID_IMediaControl, (void**)media_control_.GetAddressOf());
     RETURN_ON_FAILED(hr, "Failed to QueryInterface IID_IMediaControl. hr: %d", hr);
 }
 
 void DShowCapture::AddDeviceFilter(GUID device_guid) {
-    HRESULT hr = CoCreateInstance(device_guid, NULL, CLSCTX_INPROC, IID_IBaseFilter, (void **)&device_filter_);
+    HRESULT hr = CoCreateInstance(device_guid, NULL, CLSCTX_INPROC, IID_IBaseFilter, (void **)device_filter_.GetAddressOf());
     RETURN_ON_FAILED(hr, "Failed to create device filter. hr: %d", hr);
 
-    hr = graph_->AddFilter(device_filter_, L"Elgato Game Capture HD");
+    hr = graph_->AddFilter(device_filter_.Get(), L"Elgato Game Capture HD");
     RETURN_ON_FAILED(hr, "Failed to add device filter. hr: %d", hr);
 
-    hr = graph_->AddFilter(sink_filter_, L"Bebo Sink Filter");
+    hr = graph_->AddFilter(sink_filter_.Get(), L"Bebo Sink Filter");
     RETURN_ON_FAILED(hr, "Failed to add sink filter. hr: %d", hr);
 
-    hr = builder_->FindPin(device_filter_, PINDIR_OUTPUT, &PIN_CATEGORY_CAPTURE, &MEDIATYPE_Video, TRUE, 0, &device_output_pin_);
+    hr = builder_->FindPin(device_filter_.Get(), PINDIR_OUTPUT, &PIN_CATEGORY_CAPTURE, &MEDIATYPE_Video, TRUE, 0, device_output_pin_.GetAddressOf());
     RETURN_ON_FAILED(hr, "Failed to find video capture output pin. hr: %d", hr);
 
     ComPtr<IAMStreamConfig> stream_config;
@@ -266,7 +252,7 @@ void DShowCapture::AddDeviceFilter(GUID device_guid) {
     DeleteMediaType(format);
     info("Finished adding device filter. HR: %d", hr);
 
-    hr = graph_->ConnectDirect(device_output_pin_, sink_input_pin_, NULL);
+    hr = graph_->ConnectDirect(device_output_pin_.Get(), sink_input_pin_.Get(), NULL);
     RETURN_ON_FAILED(hr, "Failed to directly connect device output pin to sink input pin. hr: %d", hr);
 
     info("Finished adding sink filter. HR: %d", hr);
