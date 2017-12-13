@@ -19,6 +19,7 @@ static DWORD GetArea(const BITMAPINFOHEADER& info_header) {
 
 SinkInputPin::SinkInputPin(IBaseFilter* filter, SinkFilterObserver* observer)
     : PinBase(filter), requested_frame_rate_(0), observer_(observer) {
+	info("SinkInputPin");
 }
 
 /*
@@ -232,5 +233,6 @@ HRESULT SinkInputPin::Receive(IMediaSample* sample) {
 }
 
 SinkInputPin::~SinkInputPin() {
+	info("~SinkInputPin");
 }
 

@@ -10,7 +10,6 @@ public:
 	~DShowCapture();
 
 	void QueryCapabilities();
-	void EnumFilters();
 	void AddDeviceFilter(GUID device_guid);
 	void CreateFilterGraph();
 	void AddSinkFilter();
@@ -22,8 +21,8 @@ public:
 	void FrameReceived(IMediaSample* sample) override;
 
 private:
-	IGraphBuilder *graph;
-	ICaptureGraphBuilder2 *builder;
+	IGraphBuilder *graph_;
+	ICaptureGraphBuilder2 *builder_;
 	IMediaControl *media_control_;
 
 	IBaseFilter *device_filter_;
@@ -33,6 +32,6 @@ private:
 	IPin *sink_input_pin_;
 	shared_queue<IMediaSample*> media_sample_queue_;
 
-	bool initialized;
+	bool initialized_;
 };
 

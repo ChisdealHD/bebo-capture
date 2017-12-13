@@ -29,7 +29,7 @@ long sumMillisTook = 0;
 wchar_t out[1024];
 // FIXME :  move these
 bool ever_started = false;
-boolean missed = false;
+bool missed = false;
 
 #ifdef _DEBUG 
 int show_performance = 1;

@@ -102,7 +102,7 @@ STDMETHODIMP FilterBase::QueryFilterInfo(FILTER_INFO* info) {
 }
 
 STDMETHODIMP FilterBase::JoinFilterGraph(IFilterGraph* graph, LPCWSTR name) {
-  owning_graph_ = graph;
+  owning_graph_.Attach(graph);
   return S_OK;
 }
 

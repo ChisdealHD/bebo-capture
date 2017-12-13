@@ -40,7 +40,8 @@ SinkFilterObserver::~SinkFilterObserver() {
 }
 
 SinkFilter::SinkFilter(SinkFilterObserver* observer) : input_pin_(NULL) {
-  input_pin_ = new SinkInputPin(this, observer);
+  info("SinkFilter");
+  input_pin_.Attach(new SinkInputPin(this, observer));
 }
 
 /*
@@ -66,5 +67,6 @@ STDMETHODIMP SinkFilter::GetClassID(CLSID* clsid) {
 
 SinkFilter::~SinkFilter() {
   input_pin_->SetOwner(NULL);
+  info("~SinkFilter");
 }
 

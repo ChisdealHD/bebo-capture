@@ -22,20 +22,46 @@
  }
 
 DShowCapture::DShowCapture():
-	sink_filter_(new SinkFilter(this)),
+	sink_filter_(NULL),
 	sink_input_pin_(NULL),
-	initialized(false),
-    graph(NULL),
-    builder(NULL),
+	initialized_(false),
+    graph_(NULL),
+    builder_(NULL),
     media_control_(NULL),
     device_filter_(NULL),
     device_output_pin_(NULL)
 {
+	sink_filter_ = new SinkFilter(this);
 	sink_input_pin_ = sink_filter_->GetPin(0);
 }
 
 DShowCapture::~DShowCapture() {
-    // FIXME release
+	if (media_control_) {
+		media_control_->Stop();
+		media_control_->Release();
+	}
+
+	if (builder_) {
+		builder_->Release();
+	}
+
+	if (graph_) {
+		if (device_filter_) {
+			graph_->RemoveFilter(device_filter_);
+			device_filter_->Release();
+			device_output_pin_ = NULL;
+		}
+
+		if (sink_filter_) {
+			if (graph_) {
+				graph_->RemoveFilter(sink_filter_);
+			}
+			sink_filter_->Release();
+			sink_input_pin_ = NULL;
+		}
+
+		graph_->Release();
+	}
 
 }
 
@@ -144,24 +170,23 @@ namespace pmt_log {
 #endif
 
 void DShowCapture::QueryCapabilities() {}
-void DShowCapture::EnumFilters() {}
 
 void DShowCapture::CreateFilterGraph() {
     HRESULT hr;
 
     hr = CoCreateInstance(CLSID_FilterGraph, NULL, CLSCTX_INPROC_SERVER,
-        IID_IFilterGraph, (void**)&graph);
+        IID_IFilterGraph, (void**)&graph_);
     RETURN_ON_FAILED(hr, "CoCreateInstance IID_IFilterGraph failed. hr: %d", hr);
 
     hr = CoCreateInstance(CLSID_CaptureGraphBuilder2, NULL,
         CLSCTX_INPROC_SERVER,
-        IID_ICaptureGraphBuilder2, (void**)&builder);
+        IID_ICaptureGraphBuilder2, (void**)&builder_);
     RETURN_ON_FAILED(hr, "CoCreateInstance IID_ICaptureGraphBuilder2 failed. hr: %d", hr);
 
-    hr = builder->SetFiltergraph(graph);
+    hr = builder_->SetFiltergraph(graph_);
     RETURN_ON_FAILED(hr, "Failed to setFilterGraph on GraphBuilder. hr: %d", hr);
 
-    hr = graph->QueryInterface(IID_IMediaControl, (void**)&media_control_);
+    hr = graph_->QueryInterface(IID_IMediaControl, (void**)&media_control_);
     RETURN_ON_FAILED(hr, "Failed to QueryInterface IID_IMediaControl. hr: %d", hr);
 }
 
@@ -169,13 +194,13 @@ void DShowCapture::AddDeviceFilter(GUID device_guid) {
     HRESULT hr = CoCreateInstance(device_guid, NULL, CLSCTX_INPROC, IID_IBaseFilter, (void **)&device_filter_);
     RETURN_ON_FAILED(hr, "Failed to create device filter. hr: %d", hr);
 
-    hr = graph->AddFilter(device_filter_, L"Elgato Game Capture HD");
+    hr = graph_->AddFilter(device_filter_, L"Elgato Game Capture HD");
     RETURN_ON_FAILED(hr, "Failed to add device filter. hr: %d", hr);
 
-    hr = builder->GetFiltergraph(&graph);
-    RETURN_ON_FAILED(hr, "Failed to set filter graph. hr: %d", hr);
+    hr = graph_->AddFilter(sink_filter_, L"Bebo Sink Filter");
+    RETURN_ON_FAILED(hr, "Failed to add sink filter. hr: %d", hr);
 
-    hr = builder->FindPin(device_filter_, PINDIR_OUTPUT, &PIN_CATEGORY_CAPTURE, &MEDIATYPE_Video, TRUE, 0, &device_output_pin_);
+    hr = builder_->FindPin(device_filter_, PINDIR_OUTPUT, &PIN_CATEGORY_CAPTURE, &MEDIATYPE_Video, TRUE, 0, &device_output_pin_);
     RETURN_ON_FAILED(hr, "Failed to find video capture output pin. hr: %d", hr);
 
     ComPtr<IAMStreamConfig> stream_config;
@@ -207,18 +232,11 @@ void DShowCapture::AddDeviceFilter(GUID device_guid) {
     RETURN_ON_FAILED(hr, "Failed to get specific device caps. index: %d, hr: %d", capability_index, hr);
 
 #if 0
-    VIDEOINFOHEADER *vih = reinterpret_cast<VIDEOINFOHEADER*>(format->pbFormat);
-    BITMAPINFOHEADER *bmih = NULL;
-    if (format->formattype == FORMAT_VideoInfo) {
-        bmih = &reinterpret_cast<VIDEOINFOHEADER*>(format->pbFormat)->bmiHeader;
-    }
-    else {
-        bmih = &reinterpret_cast<VIDEOINFOHEADER2*>(format->pbFormat)->bmiHeader;
-    }
-    vih->AvgTimePerFrame = UNITS / 30;
-    bmih->biWidth = 1280;
-    bmih->biHeight = 720;
-    bmih->biSizeImage = 1280 * 720 * (bmih->biBitCount >> 3);
+	if (format->formattype == FORMAT_VideoInfo) {
+		VIDEOINFOHEADER* h =
+			reinterpret_cast<VIDEOINFOHEADER*>(format->pbFormat);
+		h->AvgTimePerFrame = UNITS / 30;
+	}
 #endif
 
     pmt_log::debug_pmt("setting device format", format);
@@ -247,33 +265,29 @@ void DShowCapture::AddDeviceFilter(GUID device_guid) {
 
     DeleteMediaType(format);
     info("Finished adding device filter. HR: %d", hr);
-}
 
-void DShowCapture::AddSinkFilter() {
-    HRESULT hr = graph->AddFilter(sink_filter_, NULL);
-    RETURN_ON_FAILED(hr, "Failed to find video capture output pin. hr: %d", hr);
-
-    hr = graph->ConnectDirect(device_output_pin_, sink_input_pin_, NULL);
-    RETURN_ON_FAILED(hr, "Failed to find video capture output pin. hr: %d", hr);
+    hr = graph_->ConnectDirect(device_output_pin_, sink_input_pin_, NULL);
+    RETURN_ON_FAILED(hr, "Failed to directly connect device output pin to sink input pin. hr: %d", hr);
 
     info("Finished adding sink filter. HR: %d", hr);
 }
 
-
 bool DShowCapture::Initialize() {
-    if (initialized) return true;
+    if (initialized_) return true;
 
-    initialized = true;
+    initialized_ = true;
     CreateFilterGraph();
     AddDeviceFilter(CLSID_ElgatoVideoCaptureFilter);
-    AddSinkFilter();
     Run();
     return true;
 }
 
 void DShowCapture::Run() {
     info("DShowCapture::Run()");
-    HRESULT hr = media_control_->Run();
+    HRESULT hr = media_control_->Pause();
+    RETURN_ON_FAILED(hr, "Failed to pause media control before running. hr: %d", hr);
+
+    hr = media_control_->Run();
     info("DShowCapture::Run() hr: %d", hr);
 }
 

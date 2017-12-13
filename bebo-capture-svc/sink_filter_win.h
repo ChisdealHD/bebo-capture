@@ -35,7 +35,7 @@ extern GUID kMediaSubTypeY16;
 
 class SinkInputPin;
 
-class __declspec(uuid("88cdbbdc-a73b-4afa-acbf-15d5e2ce12c3")) SinkFilter
+class __declspec(uuid("83818028-169b-41ef-aa34-9062c1a33714")) SinkFilter
     : public FilterBase {
  public:
   explicit SinkFilter(SinkFilterObserver* observer);
