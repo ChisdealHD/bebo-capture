@@ -262,8 +262,8 @@ void DShowCapture::AddDeviceAudioRendererFilter()
 {
     HRESULT hr;
 
-    hr = CoCreateInstance(CLSID_DSoundRender, NULL, CLSCTX_INPROC, 
-        IID_IBaseFilter, (void**) &audio_renderer_filter_);
+    hr = CoCreateInstance(CLSID_DSoundRender, NULL, CLSCTX_INPROC,
+        IID_IBaseFilter, (void**)&audio_renderer_filter_);
     RETURN_ON_FAILED(hr, "Failed CoCreateInstance DirectSound Renderer. hr: %d", hr);
 
     hr = graph_->AddFilter(audio_renderer_filter_.Get(), NULL);
@@ -287,7 +287,7 @@ void DShowCapture::AddDeviceAudioRendererFilter()
 
 HRESULT DShowCapture::GetDeviceSettings() {
     ComPtr<IElgatoVideoCaptureFilter5> elgato;
-    HRESULT hr = device_filter_.Get()->QueryInterface(IID_IElgatoVideoCaptureFilter5, (void**) elgato.GetAddressOf());
+    HRESULT hr = device_filter_.Get()->QueryInterface(IID_IElgatoVideoCaptureFilter5, (void**)elgato.GetAddressOf());
     BOOL device_present = false;
 
     if (elgato.Get()->GetDevicePresent(&device_present) == S_OK) {
@@ -303,26 +303,25 @@ HRESULT DShowCapture::GetDeviceSettings() {
     device_settings.interfaceVersion = VIDEO_CAPTURE_FILTER_INTERFACE_VERSION;
     if (elgato.Get()->GetSettingsEx(&device_settings) == S_OK) {
 
-
         info("%s \
-inputDevice: %d,\
-videoInput: %d,\
-profile: %d,\
-useAnalogAudioInput: %d,\
-hdmiColorRange: %d,\
-brightness: %d,\
-contrast: %d,\
-saturation: %d,\
-hue: %d,\
-analogAudioGain: %d,\
-digitalAudioGain: %d,\
-preserveInputFormat: %d,\
-stretchStandardDefinitionInput: %d,\
-enableFullFrameRate: %d,\
-deviceIndex: %d,\
-audioGainshowDb: %d,\
-lastSkippedUpdate: %s,\
-checkForBetaVersions: %d\n",
+            inputDevice: %d,\
+            videoInput: %d,\
+            profile: %d,\
+            useAnalogAudioInput: %d,\
+            hdmiColorRange: %d,\
+            brightness: %d,\
+            contrast: %d,\
+            saturation: %d,\
+            hue: %d,\
+            analogAudioGain: %d,\
+            digitalAudioGain: %d,\
+            preserveInputFormat: %d,\
+            stretchStandardDefinitionInput: %d,\
+            enableFullFrameRate: %d,\
+            deviceIndex: %d,\
+            audioGainshowDb: %d,\
+            lastSkippedUpdate: %s,\
+            checkForBetaVersions: %d\n",
             device_settings.Settings.deviceName,
             device_settings.Settings.inputDevice,
             device_settings.Settings.videoInput,
