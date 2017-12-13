@@ -130,8 +130,8 @@ CPushPinDesktop::CPushPinDesktop(HRESULT *phr, CGameCapture *pFilter)
 
 	// now read some custom settings...
 	WarmupCounter();
-
 	GetGameFromRegistry();
+	CleanupCapture();
 }
 
 CPushPinDesktop::~CPushPinDesktop()
@@ -419,7 +419,6 @@ void CPushPinDesktop::ProcessRegistryReadEvent(long timeout) {
 
 HRESULT CPushPinDesktop::FillBuffer(IMediaSample *pSample)
 {
-    debug("FillBuffer");
 	__int64 startThisRound = StartCounter();
 
 	CheckPointer(pSample, E_POINTER);
@@ -494,16 +493,34 @@ HRESULT CPushPinDesktop::FillBuffer(IMediaSample *pSample)
 
 	// accomodate for 0 to avoid startup negatives, which would kill our math on the next loop...
 	previousFrame = max(0, previousFrame);
-	// auto-correct drift
-	previousFrame = previousFrame + m_rtFrameLength;
 
-	if (m_iCaptureType != CAPTURE_DSHOW) {
+	// auto-correct drift
+	CSourceStream::m_pFilter->StreamTime(now);
+    if (true ||  m_iCaptureType != CAPTURE_DSHOW) {
+        if (previousFrame == 0) {
+            m_iFrameNumber = (now / m_rtFrameLength) - 1;
+            previousFrame = now;
+
+        } else if (now > (previousFrame + m_rtFrameLength)) {
+
+		    int missed_nr = (now - m_rtFrameLength - previousFrame) / m_rtFrameLength;
+            m_iFrameNumber += missed_nr;
+            countMissed += missed_nr;
+
+            debug("missed %d frames can't keep up %d %d %.02f %llf %llf %11f",
+                missed_nr, m_iFrameNumber, countMissed, (100.0L*countMissed / m_iFrameNumber), 0.0001 * now, 0.0001 * previousFrame, 0.0001 * (now - m_rtFrameLength - previousFrame));
+            previousFrame = previousFrame + missed_nr * m_rtFrameLength;
+
+        }
+
 		REFERENCE_TIME startFrame = m_iFrameNumber * m_rtFrameLength;
 		REFERENCE_TIME endFrame = startFrame + m_rtFrameLength;
 		pSample->SetTime((REFERENCE_TIME *)&startFrame, (REFERENCE_TIME *)&endFrame);
-	    CSourceStream::m_pFilter->StreamTime(now);
-		debug("timestamping (%11f) video packet %llf -> %llf length:(%11f) drift:(%llf)", 0.0001 * now, 0.0001 * startFrame, 0.0001 * endFrame, 0.0001 * (endFrame - startFrame), 0.0001 * (now - previousFrame));
+
+		//debug("timestamping (%11f) video packet %llf -> %llf length:(%11f) drift:(%llf)", 0.0001 * now, 0.0001 * startFrame, 0.0001 * endFrame, 0.0001 * (endFrame - startFrame), 0.0001 * (now - previousFrame));
 	}
+
+	previousFrame = previousFrame + m_rtFrameLength;
 
 	m_iFrameNumber++;
 
@@ -523,8 +540,7 @@ HRESULT CPushPinDesktop::FillBuffer(IMediaSample *pSample)
 	_swprintf(out, L"done video frame! total frames: %d this one %dx%d -> (%dx%d) took: %.02Lfms, %.02f ave fps (%.02f is the theoretical max fps based on this round, ave. possible fps %.02f, fastest round fps %.02f, negotiated fps %.06f), frame missed: %d, type: %ls, name: %ls, black frame: %d, black frame count: %llu",
 		m_iFrameNumber, m_iCaptureConfigWidth, m_iCaptureConfigHeight, getNegotiatedFinalWidth(), getNegotiatedFinalHeight(), millisThisRoundTook, m_fFpsSinceBeginningOfTime, 1.0 * 1000 / millisThisRoundTook,
 		/* average */ 1.0 * 1000 * m_iFrameNumber / sumMillisTook, 1.0 * 1000 / fastestRoundMillis, GetFps(), countMissed, m_pCaptureTypeName.c_str(), m_pCaptureLabel.c_str(), isBlackFrame, blackFrameCount);
-	debug_(out);
-    debug("end FillBuffer");
+	//debug_(out);
 	return S_OK;
 }
 
@@ -781,10 +797,19 @@ HRESULT CPushPinDesktop::FillBuffer_DShow(IMediaSample *sample)
 	memcpy(out_buffer, queued_sample_buffer, out_sample_size);
 	*/
 
-	static REFERENCE_TIME last_end_time = 0;
+    CRefTime now;
+	CSourceStream::m_pFilter->StreamTime(now);
+
+    static REFERENCE_TIME offset = 0;
 	REFERENCE_TIME start_frame;
 	REFERENCE_TIME end_frame;
 	left_hand_sample->GetTime(&start_frame, &end_frame);
+    if (offset == 0) {
+        offset = ((REFERENCE_TIME)now) + start_frame;
+    }
+
+    start_frame -= offset;
+    end_frame -= offset;
 
 #if 0
 	if (last_end_time != 0) {
